@@ -21,7 +21,9 @@
 package com.apotheke.erezeptauswertung;
 
 import com.google.zxing.WriterException;
+import java.awt.BorderLayout;
 import java.awt.image.BufferedImage;
+import java.awt.print.PrinterException;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -136,6 +138,7 @@ public class ERezeptTokenGUI {
 
         JTable table = new JTable(model);
         table.setAutoCreateRowSorter(true);
+        table.setSelectionMode(ListSelectionModel.MULTIPLE_INTERVAL_SELECTION);
 
         table.getColumnModel().getColumn(0).setPreferredWidth(150); // Patient
         table.getColumnModel().getColumn(1).setPreferredWidth(200); // Versicherung
@@ -153,7 +156,15 @@ public class ERezeptTokenGUI {
         });
 
         JScrollPane scrollPane = new JScrollPane(table);
-        mainFrame.add(scrollPane);
+        //mainFrame.add(scrollPane);
+        JButton printButton = new JButton("QR-Codes drucken");
+        printButton.addActionListener(e -> printSelectedQRCodes(table, rezeptList));
+
+        JPanel buttonPanel = new JPanel();
+        buttonPanel.add(printButton);
+
+        mainFrame.add(scrollPane, BorderLayout.CENTER);
+        mainFrame.add(buttonPanel, BorderLayout.SOUTH);
         mainFrame.setVisible(true);
     }
 
@@ -248,4 +259,24 @@ public class ERezeptTokenGUI {
         }
     }
 
+    private void printSelectedQRCodes(JTable table, List<ERezept> rezeptList) {
+        int[] selectedRows = table.getSelectedRows();
+        if (selectedRows.length == 0) {
+            JOptionPane.showMessageDialog(null, "Bitte mindestens ein Rezept auswählen.");
+            return;
+        }
+
+        List<ERezept> selectedRezepte = new ArrayList<>();
+        for (int row : selectedRows) {
+            ERezept rezept = rezeptList.get(table.convertRowIndexToModel(row));
+            selectedRezepte.add(rezept);
+        }
+
+        try {
+            QRCodePrintHelper.printRezepte(selectedRezepte);
+        } catch (PrinterException ex) {
+            Logger.getLogger(ERezeptTokenGUI.class.getName()).log(Level.SEVERE, null, ex);
+            JOptionPane.showMessageDialog(null, "Fehler beim Drucken: " + ex.getMessage());
+        }
+    }
 }

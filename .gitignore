@@ -2,3 +2,6 @@
 *.csv
 /nbactions.xml
 /nb-configuration.xml
+*.class
+*.lst
+/target

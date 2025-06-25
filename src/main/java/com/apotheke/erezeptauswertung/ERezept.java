@@ -77,7 +77,7 @@ public class ERezept {
         this.dispenseTimestamp = parseZonedDateTime(json.optString("dispenseTimestamp"));
         this.created = parseZonedDateTime(json.optString("created"));
         this.taskId = json.optString("taskId", "");
-        this.accessCode = json.optString("ccessCode", "");
+        this.accessCode = json.optString("accessCode", "");
         this.taskStatus = json.optInt("taskStatus", -1);
     }
 
