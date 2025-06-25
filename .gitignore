@@ -1,0 +1,4 @@
+/Configuration.properties
+*.csv
+/nbactions.xml
+/nb-configuration.xml
