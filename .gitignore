@@ -5,3 +5,5 @@
 *.class
 *.lst
 /target
+/ERezept_QRCodes.pdf
+/last_api_response.json

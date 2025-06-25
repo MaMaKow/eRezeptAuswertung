@@ -22,9 +22,11 @@ package com.apotheke.erezeptauswertung;
 
 import com.google.zxing.WriterException;
 import java.awt.BorderLayout;
+import java.awt.Desktop;
+import java.awt.Point;
 import java.awt.image.BufferedImage;
-import java.awt.print.PrinterException;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
@@ -80,14 +82,15 @@ public class ERezeptTokenGUI {
         new SwingWorker<List<ERezept>, Void>() {
             @Override
             protected List<ERezept> doInBackground() throws Exception {
-                LocalDateTime now = LocalDateTime.now();
-                LocalDateTime today = now.withHour(0).withMinute(0).withSecond(0).withNano(0).minusHours(2);
-                String todayString = today.format(DateTimeFormatter.ISO_DATE_TIME);
+                //LocalDateTime now = LocalDateTime.now();
+                //LocalDateTime today = now.withHour(0).withMinute(0).withSecond(0).withNano(0).minusHours(2);
+                //String todayString = today.format(DateTimeFormatter.ISO_DATE_TIME);
 
-                String apiHost = readPropertyFile.getApiHost();
-                String apiPort = readPropertyFile.getApiPort();
-                String apiUrl = "http://" + apiHost + ":" + apiPort + "/api/taskcompiled?filter.StartDate=" + todayString;
-                return fetchData(apiUrl);
+                //String apiHost = readPropertyFile.getApiHost();
+                //String apiPort = readPropertyFile.getApiPort();
+                //String apiUrl = "http://" + apiHost + ":" + apiPort + "/api/taskcompiled?filter.StartDate=" + todayString;
+                //return fetchData(apiUrl);
+                return loadOrFetchData();
             }
 
             @Override
@@ -106,6 +109,47 @@ public class ERezeptTokenGUI {
 
     private List<ERezept> fetchData(String apiUrl) throws IOException, URISyntaxException, JSONException {
         String jsonResponse = getApiResponse(apiUrl);
+        return parseJsonData(jsonResponse);
+    }
+
+    private List<ERezept> loadOrFetchData() throws IOException, URISyntaxException, JSONException {
+        File cacheFile = new File("last_api_response.json");
+        // Verschiebe das loadingFrame leicht nach links oben:
+        Point loadingLocation = loadingFrame.getLocation();
+        loadingFrame.setLocation(loadingLocation.x - 50, loadingLocation.y - 50);
+
+        // Dann den Dialog relativ zu loadingFrame anzeigen:
+        int userChoice = JOptionPane.YES_OPTION;
+        if (cacheFile.exists()) {
+            userChoice = JOptionPane.showConfirmDialog(
+                    loadingFrame,
+                    "Lokale API-Daten gefunden.\nMöchtest du die gespeicherten Daten verwenden?",
+                    "API oder Cache?",
+                    JOptionPane.YES_NO_OPTION
+            );
+        }
+
+        String jsonResponse;
+        if (userChoice == JOptionPane.YES_OPTION && cacheFile.exists()) {
+            System.out.println("Lese Daten aus Cache-Datei...");
+            jsonResponse = new String(java.nio.file.Files.readAllBytes(cacheFile.toPath()), java.nio.charset.StandardCharsets.UTF_8);
+        } else {
+            System.out.println("Hole Daten von API...");
+            LocalDateTime now = LocalDateTime.now();
+            LocalDateTime today = now.withHour(0).withMinute(0).withSecond(0).withNano(0).minusHours(2);
+            String todayString = today.format(DateTimeFormatter.ISO_DATE_TIME);
+
+            String apiHost = readPropertyFile.getApiHost();
+            String apiPort = readPropertyFile.getApiPort();
+            String apiUrl = "http://" + apiHost + ":" + apiPort + "/api/taskcompiled?filter.StartDate=" + todayString;
+
+            jsonResponse = getApiResponse(apiUrl);
+
+            // Nach erfolgreichem Abruf speichern:
+            java.nio.file.Files.write(cacheFile.toPath(), jsonResponse.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            System.out.println("API-Daten gespeichert in: " + cacheFile.getAbsolutePath());
+        }
+
         return parseJsonData(jsonResponse);
     }
 
@@ -273,10 +317,18 @@ public class ERezeptTokenGUI {
         }
 
         try {
-            QRCodePrintHelper.printRezepte(selectedRezepte);
-        } catch (PrinterException ex) {
+            System.out.println("definiere PDF-Datei");
+            File outputFile = new File("ERezept_QRCodes.pdf");
+            System.out.println("exportiere PDF-Datei");
+            QRCodePdfExporter.exportRezepteToPdf(selectedRezepte, outputFile);
+            System.out.println("öffne PDF-Datei");
+            Desktop.getDesktop().open(outputFile);  // Öffnet im Standard-PDF-Viewer
+            System.out.println("done with PDF-Datei");
+        } catch (IOException ex) {
+            System.out.println("Fehler beim Erstellen der PDF-Vorschau");
+            JOptionPane.showMessageDialog(null, "Fehler beim Erstellen der PDF-Vorschau: " + ex.getMessage());
+        } catch (WriterException ex) {
             Logger.getLogger(ERezeptTokenGUI.class.getName()).log(Level.SEVERE, null, ex);
-            JOptionPane.showMessageDialog(null, "Fehler beim Drucken: " + ex.getMessage());
         }
     }
 }
